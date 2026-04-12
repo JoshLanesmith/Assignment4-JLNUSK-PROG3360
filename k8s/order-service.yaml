@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: assignment-3
+spec:
+  type: NodePort
+  selector:
+    app: order-service
+    version: blue # blue
+  ports:
+    - port: 8081
+      name: order-service
+      targetPort: 8081
+      nodePort: 30001

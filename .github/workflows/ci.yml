@@ -1,0 +1,66 @@
+name: Assignment1-JLNUSK-PROG3360
+
+on:
+  pull_request:
+    branches:
+      - "master"
+  push:
+    branches:
+      - "master"
+
+jobs:
+  build-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone for Code Repository
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: maven
+
+#      - name: Unit Test PS
+#        run: mvn -B test
+#        working-directory: ./ProductServiceA2
+
+      - name: Pack up PS!
+        run: mvn -B -DskipTests package
+        working-directory: ./ProductServiceA2
+
+#      - name: Unit Test OS
+#        run: mvn -B test
+#        working-directory: ./OrderServiceA2
+
+      - name: Pack up OS!
+        run: mvn -B -DskipTests package
+        working-directory: ./OrderServiceA2
+
+      - name: Login in to Docker HUB
+        uses: docker/login-action@v3
+        with:
+          username: ${{secrets.DOCKER_HUB_USERNAME}}
+          password: ${{secrets.DOCKER_HUB_ACCESS_TOKEN}}
+
+      - name: Build and Push Docker Image Product Service
+        uses: docker/build-push-action@v6
+        with:
+          context: ./ProductServiceA2
+          push: true
+          tags: ${{secrets.DOCKER_HUB_USERNAME}}/assignment2-jlnusk-prog3360-ps:latest
+
+      - name: Build and Push Docker Image Order Service
+        uses: docker/build-push-action@v6
+        with:
+          context: ./OrderServiceA2
+          push: true
+          tags: ${{secrets.DOCKER_HUB_USERNAME}}/assignment2-jlnusk-prog3360-os:latest
+
+      - name: Build Docker Images
+        run: docker compose build
+
+      - name: Start Services
+        run: docker compose up -d

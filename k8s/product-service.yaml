@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service
+  namespace: assignment-3
+spec:
+  type: ClusterIP
+  selector:
+    app: product-service
+    version: blue # blue
+  ports:
+    - port: 8080
+      name: product-service
+      targetPort: 8080

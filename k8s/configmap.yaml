@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: assignment-3-config
+  namespace: assignment-3
+data:
+  APP_ENVIRONMENT: "development"
+  PRODUCT_SERVICE_URL: "http://product-service:8080"
+  ORDER_SERVICE_URL: "http://order-service:8081"
+  APP_VERSION: "v1"
