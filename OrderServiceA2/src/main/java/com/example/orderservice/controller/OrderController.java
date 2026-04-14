@@ -9,7 +9,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.*;
-
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import java.util.List;
 import java.util.Optional;
 
@@ -22,8 +23,14 @@ class OrderController {
     private static final Logger log = LoggerFactory.getLogger(OrderController.class);
     private final ProductClient productClient;
 
-    OrderController(ProductClient productClient) {
+    private final Counter orderCounter;
+
+    OrderController(ProductClient productClient, MeterRegistry registry) {
         this.productClient = productClient;
+
+        this.orderCounter = Counter.builder("total_orders_created")
+                .description("Total number of orders created")
+                .register(registry);
     }
 
     @Value("${app.version:unknown}")
@@ -81,6 +88,7 @@ class OrderController {
 
             order.setTotalPrice(totalPrice);
             Order savedOrder = orderRepository.save(order);
+            orderCounter.increment();
 
             log.info("Order created successfully with orderId: {}, totalPrice: {}",
                     savedOrder.getId(), savedOrder.getTotalPrice());
