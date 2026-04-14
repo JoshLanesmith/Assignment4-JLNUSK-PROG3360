@@ -3,11 +3,13 @@ package com.example.productservice.filter;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.MDC;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.UUID;
 
 // CorrelationFilter is a filter that adds a correlation ID to the request and logs it.
+@Component
 public class CorrelationFilter implements Filter {
 
     private static final String HEADER_NAME = "X-Correlation-Id";
