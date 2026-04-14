@@ -1,14 +1,9 @@
 # Assignment 4 Demo Runbook (Full Story)
 
-## 0. Variables
-```powershell
-$NS="assignment-4"
-```
-
 ## 1. Start Fresh (Clean Reset)
 ```powershell
-kubectl delete namespace $NS --ignore-not-found=true
-kubectl wait --for=delete namespace/$NS --timeout=240s
+kubectl delete namespace assignment-4 --ignore-not-found=true
+kubectl wait --for=delete namespace/assignment-4 --timeout=240s
 ```
 
 ## 2. Build App Images and Load into Minikube
@@ -40,33 +35,36 @@ kubectl apply -f k8s/zipkin-service.yaml
 
 ## 4. Verify Deployments (Part 1 Evidence)
 ```powershell
-kubectl rollout status deployment/product-service -n $NS --timeout=240s
-kubectl rollout status deployment/order-service -n $NS --timeout=240s
-kubectl rollout status deployment/prometheus -n $NS --timeout=240s
-kubectl rollout status deployment/grafana -n $NS --timeout=240s
-kubectl rollout status deployment/zipkin -n $NS --timeout=240s
+kubectl rollout status deployment/product-service -n assignment-4 --timeout=240s
+kubectl rollout status deployment/order-service -n assignment-4 --timeout=240s
+kubectl rollout status deployment/prometheus -n assignment-4 --timeout=240s
+kubectl rollout status deployment/grafana -n assignment-4 --timeout=240s
+kubectl rollout status deployment/zipkin -n assignment-4 --timeout=240s
 
-kubectl get pods -n $NS -o wide
-kubectl get svc -n $NS
-kubectl get deployments -n $NS
-kubectl get replicasets -n $NS
+kubectl get pods -n assignment-4 -o wide
+kubectl get svc -n assignment-4
+kubectl get deployments -n assignment-4
+kubectl get replicasets -n assignment-4
+
+--- OOR ---
+kubectl get all -n assignment-4
 ```
 
 ## 5. Expose Services for Demo (Separate Terminals)
 ```powershell
-kubectl port-forward svc/product-service 18080:8080 -n $NS
+kubectl port-forward svc/product-service 18080:8080 -n assignment-4
 ```
 ```powershell
-kubectl port-forward svc/order-service 18081:8081 -n $NS
+kubectl port-forward svc/order-service 18081:8081 -n assignment-4
 ```
 ```powershell
-kubectl port-forward svc/prometheus 19090:9090 -n $NS
+kubectl port-forward svc/prometheus 19090:9090 -n assignment-4
 ```
 ```powershell
-kubectl port-forward svc/grafana 13000:3000 -n $NS
+kubectl port-forward svc/grafana 13000:3000 -n assignment-4
 ```
 ```powershell
-kubectl port-forward svc/zipkin 19411:9411 -n $NS
+kubectl port-forward svc/zipkin 19411:9411 -n assignment-4
 ```
 
 ## 6. Generate Business Traffic
@@ -75,7 +73,9 @@ $p = curl.exe -s -H "Content-Type: application/json" -d '{"name":"Laptop","descr
 curl.exe -s -H "Content-Type: application/json" -d ("{\"productId\":" + $p.id + ",\"quantity\":2}") http://localhost:18081/api/orders
 curl.exe -s -H "Content-Type: application/json" -d ("{\"productId\":" + $p.id + ",\"quantity\":1}") http://localhost:18081/api/orders
 ```
-
+```
+curl.exe --request POST "http://localhost:18080/api/products" --header "Content-Type: application/json" --data-raw '{"id":1,"quantity":200,"name":"NEW-XYZ", "price": 100.00}'
+```
 ## 7. Prometheus + Grafana (Part 2 Evidence)
 ```powershell
 start http://localhost:19090/targets
@@ -109,11 +109,11 @@ $end=[DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
 Invoke-RestMethod -Uri ("http://localhost:19411/zipkin/api/v2/dependencies?endTs={0}&lookback=600000" -f $end) | ConvertTo-Json -Depth 8
 
 # Correlate traces with logs
-kubectl logs deployment/order-service -n $NS --tail=200
-kubectl logs deployment/product-service -n $NS --tail=200
+kubectl logs deployment/order-service -n assignment-4 --tail=200
+kubectl logs deployment/product-service -n assignment-4 --tail=200
 ```
 
 ## 10. Optional Cleanup
 ```powershell
-kubectl delete namespace $NS
+kubectl delete namespace assignment-4
 ```

@@ -81,7 +81,7 @@ class OrderController {
             long pricingStartTime = System.currentTimeMillis();
             log.info("product_lookup_start productId={}", order.getProductId());
 
-                    Span productLookupSpan = tracer.nextSpan().name("order.product-service.lookup").start();
+            Span productLookupSpan = tracer.nextSpan().name("order.product-service.lookup").start();
             Product orderedProduct;
 
             try (Tracer.SpanInScope scope = tracer.withSpan(productLookupSpan)) {
