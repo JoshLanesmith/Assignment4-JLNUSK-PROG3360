@@ -1,10 +1,11 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: assignment-3-config
-  namespace: assignment-3
+  name: assignment-4-config
+  namespace: assignment-4
 data:
   APP_ENVIRONMENT: "development"
   PRODUCT_SERVICE_URL: "http://product-service:8080"
   ORDER_SERVICE_URL: "http://order-service:8081"
   APP_VERSION: "v1"
+  ZIPKIN_ENDPOINT: "http://zipkin:9411/api/v2/spans"

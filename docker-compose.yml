@@ -1,27 +1,30 @@
 services:
-  db:
-    image: postgres:15
-    environment:
-      POSTGRES_DB: unleash
-      POSTGRES_USER: unleash
-      POSTGRES_PASSWORD: unleash
-#    volumes:
-#      - ./persistent-pg-data:/var/lib/postgresql/data
+  zipkin:
+    image: openzipkin/zipkin:latest
+    ports:
+      - "9411:9411"
 
-#  unleash:
-#    image: unleashorg/unleash-server:latest
-#    depends_on:
-#      - db
-##    depends_on:
-##      db:
-##        condition: service_healthy
-#    ports:
-#      - "4242:4242"
-#    environment:
-#      DATABASE_URL: "postgres://unleash:unleash@db:5432/unleash"
-#      DATABASE_SSL: "false"
-#      UNLEASH_DEFAULT_ADMIN_USERNAME: "admin"
-#      UNLEASH_DEFAULT_ADMIN_PASSWORD: "admin"
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./OrderServiceA2/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - product-service
+      - order-service
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: "admin"
+      GF_SECURITY_ADMIN_PASSWORD: "admin"
+    volumes:
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
 
   product-service:
     build: ./ProductServiceA2
@@ -29,7 +32,9 @@ services:
     ports:
       - "8080:8080"
     environment:
-      UNLEASH_API_KEY: "${ENV_UNLEASH_API_KEY}"
+      ZIPKIN_ENDPOINT: "http://zipkin:9411/api/v2/spans"
+    depends_on:
+      - zipkin
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health" ]
       interval: 10s
@@ -42,8 +47,11 @@ services:
     ports:
       - "8081:8081"
     environment:
-      UNLEASH_API_KEY: "${ENV_UNLEASH_API_KEY}"
+      PRODUCT_SERVICE_URL: "http://product-service:8080"
+      ZIPKIN_ENDPOINT: "http://zipkin:9411/api/v2/spans"
     depends_on:
+      zipkin:
+        condition: service_started
       product-service:
         condition: service_healthy # use `docker events --filter 'event=health_status'` to see the logs for Healthchecks
 

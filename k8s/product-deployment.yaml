@@ -2,11 +2,11 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: product-service
-  namespace: assignment-3
+  namespace: assignment-4
   labels:
     app: product-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: product-service
@@ -28,4 +28,4 @@ spec:
               value: "v1.0"
           envFrom:
             - configMapRef:
-                name: assignment-3-config
+                name: assignment-4-config

@@ -6,6 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -34,41 +36,76 @@ class ProductController {
 
     // Get one Product from favouriteProduct List based on id
     @GetMapping("/{id}")
-    public Optional<Product> getProduct(@PathVariable int id){
+    public ResponseEntity<Product> getProduct(@PathVariable int id){
 
-        log.info("Fetching product with ID: {}", id);
+        log.info("product_lookup_start productId={}", id);
 
         Optional<Product> product = productRepository.findById(id);
 
         if (product.isEmpty()) {
-            log.warn("Product not found for ID: {}", id);
+            log.warn("product_lookup_result productId={} outcome=NOT_FOUND", id);
+            return ResponseEntity.notFound().build();
         }
 
-        return product;
+        Product foundProduct = product.get();
+        log.info(
+                "product_lookup_result productId={} outcome=FOUND price={} quantity={}",
+                foundProduct.getId(),
+                foundProduct.getPrice(),
+                foundProduct.getQuantity()
+        );
+
+        return ResponseEntity.ok(foundProduct);
     }
 
     @PostMapping("")
-    public boolean insertProduct(@RequestBody Product product){
+    public ResponseEntity<Product> insertProduct(@RequestBody Product product){
         try{
-            productRepository.save(product);
+            Product savedProduct = productRepository.save(product);
+
+            log.info(
+                    "product_created productId={} name={} price={} quantity={}",
+                    savedProduct.getId(),
+                    savedProduct.getName(),
+                    savedProduct.getPrice(),
+                    savedProduct.getQuantity()
+            );
+
+            return ResponseEntity.status(HttpStatus.CREATED).body(savedProduct);
         }
         catch(Exception e){
-            return false;
+            log.error(
+                    "product_create_failed name={} price={} quantity={}",
+                    product.getName(),
+                    product.getPrice(),
+                    product.getQuantity(),
+                    e
+            );
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
-        return true;
     }
 
     // Delete product from favouriteProducts List based on id
     @DeleteMapping("/{id}")
-    public boolean deleteProduct(@PathVariable Integer id){
+    public ResponseEntity<Void> deleteProduct(@PathVariable Integer id){
         try{
             Optional<Product> toDelete = productRepository.findById(id);
-            toDelete.ifPresent(product -> productRepository.delete(product));
 
-            return true;
+            if (toDelete.isEmpty()) {
+                log.warn("product_delete_rejected productId={} reason=NOT_FOUND", id);
+                return ResponseEntity.notFound().build();
+            }
+
+            productRepository.delete(toDelete.get());
+
+            log.info("product_deleted productId={}", id);
+
+            return ResponseEntity.noContent().build();
+
         }
         catch (Exception e){
-            return false;
+            log.error("product_delete_failed productId={}", id, e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
 
@@ -76,14 +113,7 @@ class ProductController {
     public List<Product> getPremiumPricedProducts(){
         List<Product> products = productRepository.findAll();
 
-//        if(featureFlagService.isPremiumPricingEnabled()){
-//            List<Product> listOfPremium = new ArrayList<>();
-//            for (Product product : products) {
-//                product.setPrice(product.getPrice() * 0.9f);
-//                listOfPremium.add(product);
-//            }
-//            return listOfPremium;
-//        }
+        log.info("premium_products_requested returnedCount={}", products.size());
         return products;
     }
 }
