@@ -41,6 +41,9 @@ class OrderController {
     @Value("${app.version:unknown}")
     private String appVersion;
 
+    @Value("${product.service.url}")
+    private String productServiceUrl;
+
     @GetMapping("/version")
     public String getAppVersion() {
         return "Order Service running on version: "  + appVersion;
@@ -70,7 +73,7 @@ class OrderController {
             Product orderedProduct;
 
             orderedProduct = restClient.get()
-                .uri("http://localhost:8080/api/products/" +  order.getProductId())
+                .uri(productServiceUrl + "/api/products/" + order.getProductId())
                 .retrieve()
                 .body(Product.class);
 

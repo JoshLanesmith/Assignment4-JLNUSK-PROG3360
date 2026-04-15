@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-provider-config
+  namespace: assignment-4
+data:
+  dashboard-provider.yaml: |
+    apiVersion: 1
+    providers:
+      - name: Assignment4 Dashboards
+        orgId: 1
+        folder: Assignment4
+        type: file
+        disableDeletion: false
+        editable: true
+        updateIntervalSeconds: 10
+        options:
+          path: /etc/grafana/provisioning/dashboards-json

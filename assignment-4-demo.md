@@ -23,6 +23,8 @@ kubectl apply -f k8s/namespace.yaml
 kubectl apply -f k8s/configmap.yaml
 kubectl apply -f k8s/prometheus-configmap.yaml
 kubectl apply -f k8s/grafana-datasource-configmap.yaml
+kubectl apply -f k8s/grafana-dashboard-provider-configmap.yaml
+kubectl apply -f k8s/grafana-dashboard-configmap.yaml
 
 kubectl apply -f k8s/prometheus-deployment.yaml
 kubectl apply -f k8s/grafana-deployment.yaml
@@ -59,14 +61,28 @@ kubectl port-forward svc/grafana 13000:3000 -n assignment-4
 kubectl port-forward svc/zipkin 19411:9411 -n assignment-4
 ```
 
+Product Service: [http://localhost:18080/api/products](http://localhost:18080/api/products)
+Order Service: [http://localhost:18081/api/orders](http://localhost:18081/api/orders)
+Prometheus: [http://localhost:19090](http://localhost:19090)
+    - Targets: [http://localhost:19090/targets](http://localhost:19090/targets)
+    - total_orders_total: [Query](http://localhost:19090/query?g0.expr=total_orders_total&g0.show_tree=0&g0.tab=table&g0.range_input=1h&g0.res_type=auto&g0.res_density=medium&g0.display_mode=lines&g0.show_exemplars=0)
+Grafana: [http://localhost:13000](http://localhost:13000)
+Zipkin: [http://localhost:19411](http://localhost:19411)
+
+
+
 ## 6. Generate Business Traffic with Happy Path
 ```powershell
 # Successful Order = all INFO logs
-curl.exe -s -H "Content-Type: application/json" -d '{\"id\":1,\"name\":\"Laptop\",\"price\":1200.0,\"quantity\":25}' http://localhost:18080/api/products
-curl.exe -s -H "Content-Type: application/json" -d ("{\"productId\":1,\"quantity\":2}") http://localhost:18081/api/orders
+curl.exe -s -H "Content-Type: application/json" -d '{"id":1,"name":"Laptop","price":1200.00,"quantity":25}' http://localhost:18080/api/products
+curl.exe -s -H "Content-Type: application/json" -d '{"productId":1,"quantity":2, "status":"Hey Taso!"}' http://localhost:18081/api/orders
 ```
 
 ## 7. Prometheus + Grafana (Part 2 Evidence)
+
+1. Create Dashboard
+2. Create test Alert order total is 0 or is above X something like that :)
+
 ```powershell
 start http://localhost:19090/targets
 Invoke-RestMethod -Uri "http://localhost:19090/api/v1/query?query=total_orders_total" | ConvertTo-Json -Depth 8

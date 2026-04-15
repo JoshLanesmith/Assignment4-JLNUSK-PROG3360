@@ -26,6 +26,8 @@ spec:
           env:
             - name: APP_VERSION
               value: "v1.0"
+            # - name: PRODUCT_SERVICE_URL
+            #   value: "http://product-service:18080"
           envFrom:
             - configMapRef:
                 name: assignment-4-config
