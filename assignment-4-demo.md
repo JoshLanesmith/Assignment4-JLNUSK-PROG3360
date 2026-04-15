@@ -69,8 +69,8 @@ kubectl port-forward svc/zipkin 19411:9411 -n assignment-4
 
 ## 6. Generate Business Traffic
 ```powershell
-$p = curl.exe -s -H "Content-Type: application/json" -d '{"name":"Laptop","description":"demo-item","price":1200.0,"quantity":25}' http://localhost:18080/api/products | ConvertFrom-Json
-curl.exe -s -H "Content-Type: application/json" -d ("{\"productId\":" + $p.id + ",\"quantity\":2}") http://localhost:18081/api/orders
+$p = curl.exe -s -H "Content-Type: application/json" -d '{\"id\":1,\"name\":\"Laptop\",\"price\":1200.0,\"quantity\":25}' http://localhost:18080/api/products | ConvertFrom-Json
+curl.exe -s -H "Content-Type: application/json" -d ("{\"productId\":1,\"quantity\":2}") http://localhost:18081/api/orders
 curl.exe -s -H "Content-Type: application/json" -d ("{\"productId\":" + $p.id + ",\"quantity\":1}") http://localhost:18081/api/orders
 ```
 ```

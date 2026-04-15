@@ -1,6 +1,5 @@
 package com.example.orderservice.controller;
 
-import com.example.orderservice.client.ProductClient;
 import com.example.orderservice.entity.Product;
 import com.example.orderservice.model.Order;
 import com.example.orderservice.repository.OrderRepository;
@@ -14,9 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.tracing.Span;
-import io.micrometer.tracing.Tracer;
-import org.slf4j.MDC;
+import org.springframework.web.client.RestClient;
+
 import java.util.List;
 import java.util.Optional;
 
@@ -27,14 +25,13 @@ class OrderController {
     OrderRepository orderRepository;
 
     private static final Logger log = LoggerFactory.getLogger(OrderController.class);
-    private final ProductClient productClient;
-    private final Tracer tracer;
+
+    private final RestClient restClient;
 
     private final Counter orderCounter;
 
-    OrderController(ProductClient productClient, MeterRegistry registry, Tracer tracer) {
-        this.productClient = productClient;
-        this.tracer = tracer;
+    OrderController(MeterRegistry registry, RestClient restClient) {
+        this.restClient = restClient;
 
         this.orderCounter = Counter.builder("total_orders")
                 .description("Total number of orders created")
@@ -43,16 +40,6 @@ class OrderController {
 
     @Value("${app.version:unknown}")
     private String appVersion;
-
-    private static String toTraceParentTraceId(String traceId) {
-        if (traceId == null) {
-            return null;
-        }
-        if (traceId.length() >= 32) {
-            return traceId;
-        }
-        return String.format("%32s", traceId).replace(' ', '0');
-    }
 
     @GetMapping("/version")
     public String getAppVersion() {
@@ -80,38 +67,12 @@ class OrderController {
         try {
             long pricingStartTime = System.currentTimeMillis();
             log.info("product_lookup_start productId={}", order.getProductId());
-
-            Span productLookupSpan = tracer.nextSpan().name("order.product-service.lookup").start();
             Product orderedProduct;
 
-            try (Tracer.SpanInScope scope = tracer.withSpan(productLookupSpan)) {
-                        String correlationId = MDC.get("correlationId");
-                        Span currentSpan = tracer.currentSpan();
-                        String traceId = currentSpan != null ? currentSpan.context().traceId() : null;
-                        String spanId = currentSpan != null ? currentSpan.context().spanId() : null;
-                        String b3 = (traceId != null && spanId != null) ? traceId + "-" + spanId + "-1" : null;
-                        String traceparent = (traceId != null && spanId != null)
-                            ? "00-" + toTraceParentTraceId(traceId) + "-" + spanId + "-01"
-                            : null;
-
-                        log.info("outgoing_trace_context productId={} traceId={} spanId={} b3={} traceparent={}",
-                            order.getProductId(), traceId, spanId, b3, traceparent);
-
-                        orderedProduct = productClient.getProduct(
-                                order.getProductId(),
-                                correlationId,
-                                b3,
-                                traceId,
-                                spanId,
-                            "1",
-                            traceparent
-                        );
-            } catch (Exception ex) {
-                productLookupSpan.error(ex);
-                throw ex;
-            } finally {
-                productLookupSpan.end();
-            }
+            orderedProduct = restClient.get()
+                .uri("http://localhost:8080/api/products/" +  order.getProductId())
+                .retrieve()
+                .body(Product.class);
 
             if (orderedProduct == null) {
                 log.warn("order_rejected productId={} quantity={} reason=PRODUCT_NOT_FOUND",
@@ -120,30 +81,30 @@ class OrderController {
             }
 
             log.info(
-                    "product_lookup_result productId={} outcome=FOUND unitPrice={} availableQuantity={}",
-                    orderedProduct.getId(),
-                    orderedProduct.getPrice(),
-                    orderedProduct.getQuantity()
+                "product_lookup_result productId={} outcome=FOUND unitPrice={} availableQuantity={}",
+                orderedProduct.getId(),
+                orderedProduct.getPrice(),
+                orderedProduct.getQuantity()
             );
 
             if (orderedProduct.getQuantity() < order.getQuantity()) {
                 log.warn("order_rejected productId={} requestedQuantity={} availableQuantity={} reason=INSUFFICIENT_STOCK",
-                        order.getProductId(),
-                        order.getQuantity(),
-                        orderedProduct.getQuantity());
+                    order.getProductId(),
+                    order.getQuantity(),
+                    orderedProduct.getQuantity());
                 return ResponseEntity.status(HttpStatus.CONFLICT).build();
             }
 
             float totalPrice = orderedProduct.getPrice() * order.getQuantity();
 
             log.info(
-                    "pricing_decision productId={} quantity={} unitPrice={} discountApplied={} finalPrice={} lookupLatencyMs={}",
-                    order.getProductId(),
-                    order.getQuantity(),
-                    orderedProduct.getPrice(),
-                    false,
-                    totalPrice,
-                    System.currentTimeMillis() - pricingStartTime
+                "pricing_decision productId={} quantity={} unitPrice={} discountApplied={} finalPrice={} lookupLatencyMs={}",
+                order.getProductId(),
+                order.getQuantity(),
+                orderedProduct.getPrice(),
+                false,
+                totalPrice,
+                System.currentTimeMillis() - pricingStartTime
             );
 
             order.setTotalPrice(totalPrice);
@@ -151,11 +112,11 @@ class OrderController {
             orderCounter.increment();
 
             log.info(
-                    "order_persisted orderId={} productId={} quantity={} totalPrice={}",
-                    savedOrder.getId(),
-                    savedOrder.getProductId(),
-                    savedOrder.getQuantity(),
-                    savedOrder.getTotalPrice()
+                "order_persisted orderId={} productId={} quantity={} totalPrice={}",
+                savedOrder.getId(),
+                savedOrder.getProductId(),
+                savedOrder.getQuantity(),
+                savedOrder.getTotalPrice()
             );
 
             return ResponseEntity.status(HttpStatus.CREATED).body(savedOrder);
