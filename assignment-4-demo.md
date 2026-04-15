@@ -1,9 +1,13 @@
 # Assignment 4 Demo Runbook (Full Story)
 
+- Normal successful order creation = all INFO logs
+- Insufficient quantity = WARN log
+- Product Not Found = ERROR log
+
 ## 1. Start Fresh (Clean Reset)
 ```powershell
-kubectl delete namespace assignment-4 --ignore-not-found=true
-kubectl wait --for=delete namespace/assignment-4 --timeout=240s
+minikube start
+kubectl delete -f k8s/
 ```
 
 ## 2. Build App Images and Load into Minikube
@@ -20,33 +24,21 @@ kubectl apply -f k8s/configmap.yaml
 kubectl apply -f k8s/prometheus-configmap.yaml
 kubectl apply -f k8s/grafana-datasource-configmap.yaml
 
-kubectl apply -f k8s/product-deployment.yaml
-kubectl apply -f k8s/order-deployment.yaml
 kubectl apply -f k8s/prometheus-deployment.yaml
 kubectl apply -f k8s/grafana-deployment.yaml
 kubectl apply -f k8s/zipkin-deployment.yaml
+kubectl apply -f k8s/product-deployment.yaml
+kubectl apply -f k8s/order-deployment.yaml
 
-kubectl apply -f k8s/product-service.yaml
-kubectl apply -f k8s/order-service.yaml
 kubectl apply -f k8s/prometheus-service.yaml
 kubectl apply -f k8s/grafana-service.yaml
 kubectl apply -f k8s/zipkin-service.yaml
+kubectl apply -f k8s/product-service.yaml
+kubectl apply -f k8s/order-service.yaml
 ```
 
 ## 4. Verify Deployments (Part 1 Evidence)
 ```powershell
-kubectl rollout status deployment/product-service -n assignment-4 --timeout=240s
-kubectl rollout status deployment/order-service -n assignment-4 --timeout=240s
-kubectl rollout status deployment/prometheus -n assignment-4 --timeout=240s
-kubectl rollout status deployment/grafana -n assignment-4 --timeout=240s
-kubectl rollout status deployment/zipkin -n assignment-4 --timeout=240s
-
-kubectl get pods -n assignment-4 -o wide
-kubectl get svc -n assignment-4
-kubectl get deployments -n assignment-4
-kubectl get replicasets -n assignment-4
-
---- OOR ---
 kubectl get all -n assignment-4
 ```
 
@@ -67,15 +59,13 @@ kubectl port-forward svc/grafana 13000:3000 -n assignment-4
 kubectl port-forward svc/zipkin 19411:9411 -n assignment-4
 ```
 
-## 6. Generate Business Traffic
+## 6. Generate Business Traffic with Happy Path
 ```powershell
-$p = curl.exe -s -H "Content-Type: application/json" -d '{\"id\":1,\"name\":\"Laptop\",\"price\":1200.0,\"quantity\":25}' http://localhost:18080/api/products | ConvertFrom-Json
+# Successful Order = all INFO logs
+curl.exe -s -H "Content-Type: application/json" -d '{\"id\":1,\"name\":\"Laptop\",\"price\":1200.0,\"quantity\":25}' http://localhost:18080/api/products
 curl.exe -s -H "Content-Type: application/json" -d ("{\"productId\":1,\"quantity\":2}") http://localhost:18081/api/orders
-curl.exe -s -H "Content-Type: application/json" -d ("{\"productId\":" + $p.id + ",\"quantity\":1}") http://localhost:18081/api/orders
 ```
-```
-curl.exe --request POST "http://localhost:18080/api/products" --header "Content-Type: application/json" --data-raw '{"id":1,"quantity":200,"name":"NEW-XYZ", "price": 100.00}'
-```
+
 ## 7. Prometheus + Grafana (Part 2 Evidence)
 ```powershell
 start http://localhost:19090/targets
@@ -96,24 +86,34 @@ Suggested dashboard panels:
 ```
 
 ## 8. Zipkin (Part 3 Evidence)
+Zipkin UI
+```text
+1) Navigate to http://localhost:19411 and Run Query
+2) Show trace details for successful order
+3) Navigate to Dependencies and Run Query
+```
 ```powershell
-# Verify Zipkin API is up
-Invoke-RestMethod -Uri "http://localhost:19411/zipkin/api/v2/services"
-
-# Show latest traces by service
-Invoke-RestMethod -Uri "http://localhost:19411/zipkin/api/v2/traces?serviceName=orderservice&limit=5" | ConvertTo-Json -Depth 8
-Invoke-RestMethod -Uri "http://localhost:19411/zipkin/api/v2/traces?serviceName=productservice&limit=5" | ConvertTo-Json -Depth 8
-
-# Optional: dependency endpoint
-$end=[DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
-Invoke-RestMethod -Uri ("http://localhost:19411/zipkin/api/v2/dependencies?endTs={0}&lookback=600000" -f $end) | ConvertTo-Json -Depth 8
-
 # Correlate traces with logs
+kubectl logs deployment/order-service -n assignment-4 --tail=200
+kubectl logs deployment/product-service -n assignment-4 --tail=200
+```
+## 9. Show Unhappy Path Logs
+
+```powershell
+# Insufficient Quantity = WARN log
+curl.exe -s -H "Content-Type: application/json" -d ("{\"productId\":1,\"quantity\":200}") http://localhost:18081/api/orders
+```
+```powershell
+# Product Not Found  = ERROR log
+curl.exe -s -H "Content-Type: application/json" -d ("{\"productId\":1,\"quantity\":200}") http://localhost:18081/api/orders
+```
+```powershell
+# View logs with WARN and ERROR
 kubectl logs deployment/order-service -n assignment-4 --tail=200
 kubectl logs deployment/product-service -n assignment-4 --tail=200
 ```
 
 ## 10. Optional Cleanup
 ```powershell
-kubectl delete namespace assignment-4
+kubectl delete -f k8s/
 ```
